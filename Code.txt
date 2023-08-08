@@ -1,0 +1,119 @@
+#include<DHT.h>  // Including library for dht
+ 
+#include <ESP8266WiFi.h>
+ 
+String apiKey = "3IC5VFIWJJRFDIHF";     //  Enter your Write API key from ThingSpeak
+ 
+const char *ssid =  "RedmiNote";     // replace with your wifi ssid and wpa2 key
+const char *pass =  "vit@2003";
+const char* server = "api.thingspeak.com";
+ 
+#define DHTPIN 0          //pin where the dht11 is connected
+ 
+DHT dht(DHTPIN, DHT11);
+ 
+WiFiClient client;
+  int LED = 5;
+  int buzzer=4;
+ 
+void setup() 
+{
+       Serial.begin(9600);
+       delay(10);
+       dht.begin();
+      
+        pinMode(LED, OUTPUT);
+        pinMode(buzzer, OUTPUT);
+ 
+       Serial.println("Connecting to ");
+       Serial.println(ssid);
+ 
+ 
+       WiFi.begin(ssid, pass);
+ 
+      while (WiFi.status() != WL_CONNECTED) 
+     {
+            delay(500);
+            Serial.print(".");
+     }
+      Serial.println("");
+      Serial.println("WiFi connected");
+ 
+}
+ 
+void loop() 
+{
+  
+      float h = dht.readHumidity();
+      float t = dht.readTemperature();
+      float g = analogRead(A0);
+      if((g/1023*100)>20){
+      analogWrite(buzzer, 250);
+  delay(500);
+  analogWrite(buzzer,0);
+  delay(500);
+      digitalWrite(LED, HIGH); // turn the LED on
+delay(1000); // wait for a second
+digitalWrite(LED, LOW); // turn the LED off
+delay(100); // wait for a second
+      }
+
+       
+      //  if((g/1023*100)>25){
+
+      //   digitalWrite(BUILTIN_LED, LOW);
+      //  }
+         // Turn the LED on (Note that LOW is the voltage level
+                                    // but actually the LED is on; this is because 
+                                    // it is acive low on the ESP-01)
+        
+        //delay(1000);        
+      
+              if (isnan(h) || isnan(t) || isnan(g) ) 
+                 {
+                     Serial.println("Failed to read from DHT sensor!");
+                      return;
+                 }
+ 
+                         if (client.connect(server,80))   //   "184.106.153.149" or api.thingspeak.com
+                      {  
+                            
+                             String postStr = apiKey;
+                             postStr +="&field1=";
+                             postStr += String(t);
+                             postStr +="&field2=";
+                             postStr += String(h);
+                             postStr +="&field3=";
+                             postStr += String(g/1023*100);
+
+                             postStr += "\r\n\r\n\r\n";
+ 
+                             client.print("POST /update HTTP/1.1\n");
+                             client.print("Host: api.thingspeak.com\n");
+                             client.print("Connection: close\n");
+                             client.print("X-THINGSPEAKAPIKEY: "+apiKey+"\n");
+                             client.print("Content-Type: application/x-www-form-urlencoded\n");
+                             client.print("Content-Length: ");
+                             client.print(postStr.length());
+                             client.print("\n\n\n");
+                             client.print(postStr);
+ 
+                             
+                             Serial.print("Temperature: ");
+                             Serial.print(t);
+                              Serial.print(" degrees Celcius ");
+                             Serial.print("Humidity: ");
+                             Serial.print(h);
+                             Serial.print(" Air Quality: ");
+                             Serial.println(g/1023*100);
+                              Serial.print(" degrees Celcius");
+                             
+                             Serial.println("%. Send to Thingspeak.");
+                        }
+          client.stop();
+ 
+          Serial.println("Waiting...");
+  
+  // thingspeak needs minimum 15 sec delay between updates
+delay(1000);
+}
